@@ -12,9 +12,9 @@
  */
 
 var CONFIG = {
-  ENDPOINT: "https://SEU_PROJETO.vercel.app/api/sync/google", // Substitua pela sua URL da Vercel
-  SECRET_TOKEN: "ads_tracker_secret_token_12345",              // Mesma chave definida no .env.local
-  CLIENT_NAME: "Cliente Principal"                             // Nome do cliente para identificação
+  ENDPOINT: "https://ads-tracker-zeta.vercel.app/api/sync/google", // Sua URL oficial da Vercel
+  SECRET_TOKEN: "ads_tracker_secret_token_12345",                  // Mesma chave definida no .env.local
+  CLIENT_NAME: "Cliente Principal"                                 // Nome do cliente para identificação
 };
 
 function main() {

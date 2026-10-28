@@ -107,7 +107,7 @@ export default function DashboardPage() {
  * Agende para rodar de 1 em 1 hora.
  */
 function main() {
-  var ENDPOINT = "https://SEU_DOMINIO_VERCEL.vercel.app/api/sync/google";
+  var ENDPOINT = "https://ads-tracker-zeta.vercel.app/api/sync/google";
   var SECRET_TOKEN = "ads_tracker_secret_token_12345";
   var CLIENT_NAME = "Cliente Principal";
 
