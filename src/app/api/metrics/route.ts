@@ -61,23 +61,24 @@ export async function GET(request: Request) {
     `;
     const platformRes = await pool.query(platformQuery);
 
-    // 3. Campaign details list
+    // 3. Campaign details list (aggregated by campaign across selected date range)
     const campaignsQuery = `
       SELECT 
-        id,
+        MIN(id) as id,
         platform,
-        campaign_name,
+        MAX(campaign_name) as campaign_name,
         campaign_id,
-        status,
-        date,
-        impressions,
-        clicks,
-        spend,
-        conversions,
-        conversion_value,
-        updated_at
+        MAX(status) as status,
+        MAX(date) as date,
+        SUM(impressions) as impressions,
+        SUM(clicks) as clicks,
+        SUM(spend) as spend,
+        SUM(conversions) as conversions,
+        SUM(conversion_value) as conversion_value,
+        MAX(updated_at) as updated_at
       FROM metrics
       WHERE ${dateFilter}
+      GROUP BY platform, campaign_id
       ORDER BY spend DESC
       LIMIT 100
     `;

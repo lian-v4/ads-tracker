@@ -35,6 +35,7 @@ export async function POST(request: Request) {
       const campId = String(c.campaignId || c.id || c.campaignName);
       const campName = String(c.campaignName || c.name || 'Sem Nome');
       const status = String(c.status || 'ENABLED');
+      const rowDate = String(c.date || targetDate);
       const impressions = parseInt(c.impressions || 0, 10);
       const clicks = parseInt(c.clicks || 0, 10);
       const spend = parseFloat(c.spend || c.cost || 0);
@@ -62,7 +63,7 @@ export async function POST(request: Request) {
         campName,
         campId,
         status,
-        targetDate,
+        rowDate,
         impressions,
         clicks,
         spend,

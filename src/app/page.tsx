@@ -102,7 +102,7 @@ export default function DashboardPage() {
   const googleData = platforms.find((p) => p.platform === 'google');
 
   const googleScriptCode = `/**
- * SCRIPT PARA GOOGLE ADS - ENVIO AUTOMATICO
+ * SCRIPT PARA GOOGLE ADS - ULTIMOS 30 DIAS (ENVIO AUTOMATICO)
  * Cole em: Ferramentas e Configuracoes > Acoes em massa > Scripts
  * Agende para rodar de 1 em 1 hora.
  */
@@ -111,39 +111,51 @@ function main() {
   var SECRET_TOKEN = "ads_tracker_secret_token_12345";
   var CLIENT_NAME = "Cliente Principal";
 
-  var campaigns = [];
-  var campaignIterator = AdsApp.campaigns()
-    .withCondition("Status IN ['ENABLED', 'PAUSED']")
-    .forDateRange("TODAY")
-    .get();
+  var query = [
+    "SELECT",
+    "  campaign.id,",
+    "  campaign.name,",
+    "  campaign.status,",
+    "  segments.date,",
+    "  metrics.impressions,",
+    "  metrics.clicks,",
+    "  metrics.cost_micros,",
+    "  metrics.conversions,",
+    "  metrics.conversions_value",
+    "FROM campaign",
+    "WHERE segments.date DURING LAST_30_DAYS",
+    "  AND metrics.impressions > 0"
+  ].join(" ");
 
-  while (campaignIterator.hasNext()) {
-    var c = campaignIterator.next();
-    var stats = c.getStatsFor("TODAY");
-    
-    // Ignora campanhas que nao gastaram nada hoje para economizar payload
-    if (stats.getCost() > 0 || stats.getImpressions() > 0) {
-      campaigns.push({
-        campaignId: c.getId().toString(),
-        campaignName: c.getName(),
-        status: c.isEnabled() ? "ACTIVE" : "PAUSED",
-        impressions: stats.getImpressions(),
-        clicks: stats.getClicks(),
-        spend: stats.getCost(),
-        conversions: stats.getConversions(),
-        conversionValue: stats.getConversionValue()
-      });
-    }
+  var report = AdsApp.report(query);
+  var rows = report.rows();
+  var campaigns = [];
+
+  while (rows.hasNext()) {
+    var row = rows.next();
+    var costMicros = Number(row["metrics.cost_micros"] || 0);
+    var status = row["campaign.status"] === "ENABLED" ? "ACTIVE" : String(row["campaign.status"] || "PAUSED");
+
+    campaigns.push({
+      campaignId: String(row["campaign.id"]),
+      campaignName: String(row["campaign.name"]),
+      status: status,
+      date: String(row["segments.date"]),
+      impressions: parseInt(row["metrics.impressions"] || 0, 10),
+      clicks: parseInt(row["metrics.clicks"] || 0, 10),
+      spend: Number((costMicros / 1000000).toFixed(2)),
+      conversions: Number(row["metrics.conversions"] || 0),
+      conversionValue: Number(row["metrics.conversions_value"] || 0)
+    });
   }
 
   if (campaigns.length === 0) {
-    Logger.log("Nenhuma campanha com dados hoje.");
+    Logger.log("Nenhuma campanha com impressoes nos ultimos 30 dias.");
     return;
   }
 
   var payload = {
     clientName: CLIENT_NAME,
-    date: Utilities.formatDate(new Date(), "America/Sao_Paulo", "yyyy-MM-dd"),
     campaigns: campaigns
   };
 

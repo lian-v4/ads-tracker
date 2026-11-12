@@ -1,67 +1,74 @@
 /**
- * GOOGLE ADS SCRIPT - ADS TRACKER
+ * GOOGLE ADS SCRIPT - ADS TRACKER (ÚLTIMOS 30 DIAS)
+ * 
+ * Puxa os dados diários dos últimos 30 dias (Search, Display, Performance Max, Video, Shopping, etc.)
+ * e envia para o banco do Ads Tracker com a data exata de cada dia.
  * 
  * Como usar:
  * 1. Entre na conta do Google Ads do cliente (ou na MCC).
  * 2. No menu superior, vá em "Ferramentas e Configurações" > "Ações em massa" > "Scripts".
- * 3. Clique no botão azul "+" para criar um novo script.
+ * 3. Abra seu script existente (ou crie um novo "+").
  * 4. Apague todo o conteúdo e cole este arquivo.
- * 5. Altere as variáveis ENDPOINT e SECRET_TOKEN abaixo.
- * 6. Clique em "Autorizar" e faça o teste com "Visualizar".
- * 7. Salve e adicione uma programação de frequência: "A cada hora".
+ * 5. Clique em "Autorizar" (se ainda não autorizou) e clique em "Visualizar" ou "Executar".
+ * 6. Agende a frequência para: "A cada hora".
  */
 
 var CONFIG = {
-  ENDPOINT: "https://ads-tracker-zeta.vercel.app/api/sync/google", // Sua URL oficial da Vercel
-  SECRET_TOKEN: "ads_tracker_secret_token_12345",                  // Mesma chave definida no .env.local
-  CLIENT_NAME: "Cliente Principal"                                 // Nome do cliente para identificação
+  ENDPOINT: "https://ads-tracker-zeta.vercel.app/api/sync/google",
+  SECRET_TOKEN: "ads_tracker_secret_token_12345",
+  CLIENT_NAME: "Cliente Principal"
 };
 
 function main() {
-  Logger.log("Iniciando coleta de dados do Google Ads...");
+  Logger.log("Iniciando coleta dos últimos 30 dias do Google Ads...");
 
+  var query = [
+    "SELECT",
+    "  campaign.id,",
+    "  campaign.name,",
+    "  campaign.status,",
+    "  segments.date,",
+    "  metrics.impressions,",
+    "  metrics.clicks,",
+    "  metrics.cost_micros,",
+    "  metrics.conversions,",
+    "  metrics.conversions_value",
+    "FROM campaign",
+    "WHERE segments.date DURING LAST_30_DAYS",
+    "  AND metrics.impressions > 0"
+  ].join(" ");
+
+  var report = AdsApp.report(query);
+  var rows = report.rows();
   var campaigns = [];
-  
-  // Coletar campanhas ativas ou pausadas com dados de hoje
-  var campaignIterator = AdsApp.campaigns()
-    .withCondition("Status IN ['ENABLED', 'PAUSED']")
-    .forDateRange("TODAY")
-    .get();
 
-  while (campaignIterator.hasNext()) {
-    var c = campaignIterator.next();
-    var stats = c.getStatsFor("TODAY");
+  while (rows.hasNext()) {
+    var row = rows.next();
+    var costMicros = Number(row["metrics.cost_micros"] || 0);
+    var status = row["campaign.status"] === "ENABLED" ? "ACTIVE" : String(row["campaign.status"] || "PAUSED");
 
-    var cost = stats.getCost();
-    var impressions = stats.getImpressions();
-
-    // Filtra campanhas com alguma movimentação hoje
-    if (cost > 0 || impressions > 0) {
-      campaigns.push({
-        campaignId: c.getId().toString(),
-        campaignName: c.getName(),
-        status: c.isEnabled() ? "ACTIVE" : "PAUSED",
-        impressions: impressions,
-        clicks: stats.getClicks(),
-        spend: cost,
-        conversions: stats.getConversions(),
-        conversionValue: stats.getConversionValue()
-      });
-    }
+    campaigns.push({
+      campaignId: String(row["campaign.id"]),
+      campaignName: String(row["campaign.name"]),
+      status: status,
+      date: String(row["segments.date"]),
+      impressions: parseInt(row["metrics.impressions"] || 0, 10),
+      clicks: parseInt(row["metrics.clicks"] || 0, 10),
+      spend: Number((costMicros / 1000000).toFixed(2)),
+      conversions: Number(row["metrics.conversions"] || 0),
+      conversionValue: Number(row["metrics.conversions_value"] || 0)
+    });
   }
 
-  Logger.log("Campanhas com dados encontradas: " + campaigns.length);
+  Logger.log("Registros encontrados nos últimos 30 dias: " + campaigns.length);
 
   if (campaigns.length === 0) {
-    Logger.log("Nenhuma campanha gastou orçamento hoje até o momento.");
+    Logger.log("Nenhuma campanha teve impressões nos últimos 30 dias.");
     return;
   }
 
-  var todayStr = Utilities.formatDate(new Date(), "America/Sao_Paulo", "yyyy-MM-dd");
-
   var payload = {
     clientName: CONFIG.CLIENT_NAME,
-    date: todayStr,
     campaigns: campaigns
   };
 
@@ -89,4 +96,3 @@ function main() {
     Logger.log("Falha na requisicao: " + e.toString());
   }
 }
-
